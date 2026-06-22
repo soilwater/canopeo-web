@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-M6267XVFFM"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-M6267XVFFM');
+</script>
+
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="mobile-web-app-capable" content="yes">
+<title>Canopeo</title>
+<meta name="description" content="Canopeo — quantify green canopy cover from downward-facing images, right in your browser." />
+
+<!-- PWA wiring -->
+<link rel="manifest" href="manifest.webmanifest" />
+<meta name="theme-color" content="#ffffff" />
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png" />
+<link rel="apple-touch-icon" href="icons/icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Canopeo" />
+
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ── Menu bar ──────────────── -->
+  <div class="menubar">
+    <div class="menubar-title">
+      <img src="icons/icon-256.png" alt="" class="menubar-logo" />
+      Canopeo Web
+    </div>
+    <div class="menu-item" id="help-menu-btn" tabindex="0" aria-haspopup="true">
+      Help <span class="caret">▾</span>
+      <div class="menu-dropdown" id="help-menu-dropdown">
+        <button type="button" id="menu-about">About</button>
+        <button type="button" id="menu-guide">User Guide</button>
+        <button type="button" id="menu-license">License</button>
+      </div>
+    </div>
+
+    <div class="menubar-right">
+      <button type="button" class="theme-toggle" id="theme-toggle" title="Switch to dark theme">☾</button>
+      <button type="button" class="install-btn" id="install-btn" hidden>Install App</button>
+    </div>
+  </div>
+
+  <!-- ── Main two-pane layout ─────────────────────────────────────────── -->
+  <div class="app">
+
+    <!-- Left pane: image display -->
+    <section class="left-pane" id="left-pane">
+      <div class="image-container" id="image-container">
+        <canvas id="display-canvas"></canvas>
+        <p class="empty-state" id="empty-state">Drop your downward-facing canopy photos here<br />— or use <strong>Load images</strong> on the right to begin.</p>
+        <div class="drag-overlay" id="drag-overlay">Drop images to load</div>
+      </div>
+    </section>
+
+    <!-- Right pane: sidebar controls — laid out top-to-bottom as the flow -->
+    <aside class="right-pane">
+      <div class="sidebar" id="sidebar">
+
+        <!-- ── Load ─────────────────────────────────────────────── -->
+        <section class="step">
+          <header class="step-head">
+            <span class="step-dot"></span>
+            <h2 class="step-title">Load images</h2>
+          </header>
+
+          <button class="btn load-btn" id="load-images-btn">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 3.5v9M3.5 8h9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            Load images
+          </button>
+          <p class="hint">PNG or JPG · or drag files onto the photo area</p>
+          <p class="loaded-count" id="load-label">No images loaded</p>
+
+          <div class="field">
+            <span class="field-label">Processing size</span>
+            <div class="seg" id="resize-mode-row">
+              <label class="seg-opt">
+                <input type="radio" name="resize-mode" value="original" checked />
+                <span>Original</span>
+              </label>
+              <label class="seg-opt">
+                <input type="radio" name="resize-mode" value="compact" />
+                <span>~1 MPx</span>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <!-- ── Adjust & inspect ─────────────────────────────────── -->
+        <section class="step">
+          <header class="step-head">
+            <span class="step-dot"></span>
+            <h2 class="step-title">Adjust &amp; inspect</h2>
+          </header>
+          <p class="step-sub">A value between 0.95 and 0.98 works well for most crops and field conditions. Tune below if the overlay doesn't match the canopy.</p>
+
+          <div class="readout">
+            <div class="readout-cover">
+              <span class="readout-value" id="canopy-cover-label">–</span>
+              <span class="readout-caption">canopy cover</span>
+            </div>
+            <div class="readout-nav">
+              <button class="icon-btn" id="prev-btn" disabled aria-label="Previous image">‹</button>
+              <span class="readout-counter" id="image-counter-label">–</span>
+              <button class="icon-btn" id="next-btn" disabled aria-label="Next image">›</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <span class="field-label" id="ratio-label">Ratio: 0.97</span>
+            <input type="range" id="ratio-slider" min="0.85" max="1.15" step="0.01" value="0.97" />
+            <div class="scale-ends"><span>stricter</span><span>more permissive</span></div>
+          </div>
+
+          <div class="field">
+            <span class="field-label">Overlay color</span>
+            <div class="color-chips" id="mask-color-chips">
+              <button class="color-chip active" data-color="#00ff00" style="background:#00ff00" title="Neon green"></button>
+              <button class="color-chip" data-color="#ffffff" style="background:#ffffff" title="White"></button>
+              <button class="color-chip" data-color="#f6ff00" style="background:#f6ff00" title="Yellow"></button>
+              <button class="color-chip" data-color="#00ffff" style="background:#00ffff" title="Cyan"></button>
+              <button class="color-chip" data-color="#b84dff" style="background:#b84dff" title="Purple"></button>
+              <button class="color-chip" data-color="#ff7a00" style="background:#ff7a00" title="Orange"></button>
+              <button class="color-chip is-original" data-color="original" title="Original pixel colors"></button>
+            </div>
+          </div>
+
+          <div class="field">
+            <span class="field-label" id="alpha-label">Blended opacity: 35</span>
+            <input type="range" id="alpha-slider" min="0" max="100" step="1" value="35" />
+            <div class="scale-ends"><span>photo</span><span>overlay</span></div>
+          </div>
+
+          <label class="check">
+            <input type="checkbox" id="noise-reduction-checkbox" checked />
+            <span>Remove small specks (noise reduction)</span>
+          </label>
+
+          <div class="info-block">
+            <p class="info-line" id="image-name-label">Filename:</p>
+            <p class="info-line" id="timestamp-label">Timestamp:</p>
+            <p class="info-line" id="latitude-label">Latitude:</p>
+            <p class="info-line" id="longitude-label">Longitude:</p>
+            <p class="info-line" id="device-label">Device:</p>
+            <p class="info-line">
+              <span id="size-label">Image size:</span><span id="mpx-label"></span>
+            </p>
+          </div>
+        </section>
+
+        <!-- ── Run & download ───────────────────────────────────── -->
+        <section class="step">
+          <header class="step-head">
+            <span class="step-dot"></span>
+            <h2 class="step-title">Run &amp; download</h2>
+          </header>
+
+          <div class="field">
+            <span class="field-label">Outputs to save</span>
+            <div class="outputs" id="outputs-row">
+              <label class="check"><input type="checkbox" id="output-table" checked /><span>Table (CSV)</span></label>
+              <label class="check"><input type="checkbox" id="output-blended" /><span>Blended JPEGs</span></label>
+              <label class="check"><input type="checkbox" id="output-mask" /><span>Boolean masks (PNG)</span></label>
+            </div>
+          </div>
+
+          <button class="btn primary run-btn" id="process-btn" disabled>Process batch</button>
+
+          <div class="progress-track">
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+          <p class="progress-label" id="progress-label"></p>
+        </section>
+
+      </div>
+    </aside>
+  </div>
+
+  <input type="file" id="file-input" accept="image/*" multiple hidden />
+
+  <!-- ── Results table — appears after batch processing ──────────────── -->
+  <section class="results-section" id="results-section" hidden>
+    <div class="results-header">
+      <div class="results-title">
+        Results <span class="results-badge" id="results-count">0</span>
+      </div>
+      <div class="results-actions">
+        <button class="btn dl-btn" id="dl-csv-btn" hidden>
+          <svg width="12" height="12" viewBox="0 0 13 13" fill="none"><rect x="2" y="1" width="9" height="11" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M4 5h5M4 7h5M4 9h3" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
+          CSV
+        </button>
+        <button class="btn dl-btn" id="dl-zip-btn" hidden>
+          <svg width="12" height="12" viewBox="0 0 13 13" fill="none"><path d="M6.5 2v6M4.5 6.5l2 2 2-2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 11h9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          ZIP
+        </button>
+        <button class="btn danger-outline" id="clear-btn">
+          <svg width="12" height="12" viewBox="0 0 13 13" fill="none"><path d="M2 3h9M5 3V2h3v1M10 3l-.7 8H3.7L3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Clear
+        </button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="results-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Original</th>
+            <th>Mask</th>
+            <th>Cover %</th>
+            <th>Filename</th>
+            <th class="hide-sm">Timestamp</th>
+            <th class="hide-sm">Lat</th>
+            <th class="hide-sm">Lon</th>
+          </tr>
+        </thead>
+        <tbody id="results-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── Lightbox ─────────────────────────────────────────────────────── -->
+  <div class="lightbox" id="lightbox">
+    <button class="lightbox-close" id="lightbox-close">✕</button>
+    <img class="lightbox-img" id="lightbox-img" src="" alt="Zoomed image" />
+  </div>
+
+  <!-- ── About modal (mirrors show_about()'s Toplevel) ───────────────── -->
+  <div class="modal-overlay" id="about-modal">
+    <div class="modal-box">
+      <h2>About <button class="close-btn" data-close-modal>✕</button></h2>
+      <p class="version-line">Canopeo version: <span id="about-version">1.0</span> (web)</p>
+      <p>Canopeo is a tool for quantifying the fraction of green canopy cover from downward-facing images. Canopeo helps users track vegetation growth, assess management practices, and support agronomic and ecological research.</p>
+      <h4>Reference</h4>
+      <p>Patrignani, A., &amp; Ochsner, T. E. (2015). Canopeo: A powerful new tool for measuring fractional green canopy cover. Agronomy Journal, 107(6), 2312–2320. <a href="https://doi.org/10.2134/agronj15.0150" target="_blank" rel="noopener">https://doi.org/10.2134/agronj15.0150</a></p>
+      <h4>Developers</h4>
+      <p>Andres Patrignani — Department of Agronomy — Kansas State University<br />
+      Tyson E. Ochsner — Department of Plant and Soil Sciences — Oklahoma State University</p>
+      <h4>Contact</h4>
+      <p>For questions, bug reports, feature requests, or potential collaborations, please reach out to us at:<br />
+      <a href="mailto:andrespatrignani@ksu.edu"><span>andrespatrignani@ksu.edu</span></a><br />
+      <a href="mailto:tyson.ochsner@okstate.edu"><span>tyson.ochsner@okstate.edu</span></a></p>
+      <div class="logo-row" id="about-logo-row">
+        <img src="assets/kstate_logo.jpg" alt="Kansas State University" onerror="this.style.display='none'" />
+        <img src="assets/osu_logo.png" alt="Oklahoma State University" onerror="this.style.display='none'" />
+      </div>
+      <h4>Privacy</h4>
+      <p>This is a client-side web app: your images are processed entirely on your own device using your browser's Canvas APIs. Nothing is uploaded anywhere.</p>
+    </div>
+  </div>
+
+  <!-- ── User Guide modal (mirrors show_help()'s Toplevel) ───────────── -->
+  <div class="modal-overlay" id="guide-modal">
+    <div class="modal-box wide">
+      <h2>User Guide <button class="close-btn" data-close-modal>✕</button></h2>
+      <div id="guide-content">
+
+        <h3>Best practices for image collection</h3>
+        <p>For best results, collect downward-facing images at approximately shoulder height with the camera pointed straight down at the canopy. Keep extraneous objects out of the frame (shoes, flags, marking stakes, soil probes) and avoid reflective leaves, which can be misclassified. Light or scattered shadows are usually not a problem; harsh shadows from your own body can be minimized by positioning yourself so that you are not between the sun and the photograph area. Clear-sky sunny days and overcast days with plenty of diffuse light typically produce the best images. Avoid early morning and evening times, which can introduce some specular reflection.</p>
+
+        <h3>Sidebar widgets (top to bottom)</h3>
+
+        <p><strong>Load Images</strong><br />
+        Press to select one or more images in PNG, JPG, or JPEG format. Multiple files can be selected at once. You can also drag and drop image files directly onto the image pane on the left. The label directly below shows the number of images loaded.</p>
+
+        <p><strong>Size</strong><br />
+        Resolution at which canopy cover is computed. "Original" processes images close to their native size for highest accuracy. "~1 MPx" downscales large images to about one megapixel and is recommended for large batches of high-resolution photos; the resulting canopy cover values are typically within a fraction of a percent of the full-resolution result.</p>
+
+        <p><strong>Inspect images (Previous / Next)</strong><br />
+        Navigate through the loaded image list. The "Image" counter in the information panel shows your position in the list, and Previous / Next wrap around at the ends.</p>
+
+        <p><strong>Ratio</strong><br />
+        Strictness of the R/G and B/G ratio constraints used to classify a pixel as green. Lower values (around 0.90) are stricter and may miss yellow-green or deeply shadowed tissue; higher values (toward 1.10) are more permissive and may pick up senescing or yellow-ish leaves. The recommended default range is 0.95–0.97 and works well across most crops and lighting conditions.</p>
+
+        <p><strong>Blended opacity</strong><br />
+        Controls how the classification mask is blended onto the displayed image. A value of 0 shows only the original photo; 100 shows only the mask. Intermediate values are useful for visually verifying the classification mask.</p>
+
+        <p><strong>Enable noise reduction</strong><br />
+        When checked, removes small isolated specks (typically small weeds, residue pixels with a faint green tint, or JPEG compression artifacts). The minimum cluster size scales automatically with image resolution so the same setting works whether you are processing small phone photos or large drone imagery.</p>
+
+        <p><strong>Mask color</strong><br />
+        Sets the color of canopy pixels in the classification mask. Neon colors provide bright contrast for maximum visibility against typical backgrounds. "White" matches the visual style of the original 2015 Canopeo paper. "Original" preserves the source pixel colors, which is useful for inspecting whether the classification followed leaf edges correctly. Non-canopy pixels are always black. The selected color is also used in the blended JPEGs saved during batch processing.</p>
+
+        <p><strong>Image information</strong><br />
+        Shows the current image's metadata: image number within the loaded list, file name, computed canopy cover percentage, capture timestamp, GPS coordinates, capture device, and processing-resolution dimensions followed by the megapixel count in parentheses. The megapixel count is color-coded as a responsiveness hint: green for less than 5 MPx (snappy), amber for 5–20 MPx (noticeable but fine), and maroon for more than 20 MPx (slider drags may lag and per-image processing may take a moment). Timestamp and GPS fields are read from the EXIF metadata embedded in the file and may show "N/A" for processed or PNG-format images that have lost their original EXIF.</p>
+
+        <p><strong>Select outputs (Table / Bool Mask / Blended)</strong><br />
+        Selects which files the batch will produce. "Table" writes a CSV with one row per image containing the filename, canopy cover, GPS coordinates, timestamp, device, and processing dimensions. "Blended" writes a JPEG per image showing the source photo overlaid with the classification mask at the current opacity setting, matching what is shown on screen. "Bool Mask" writes a PNG per image where canopy pixels are white and background is black; these masks are suitable for downstream analysis or for combining with other tools. Bool Mask and Blended outputs are packaged together into a single ZIP archive. At least one option must be selected.</p>
+
+        <p><strong>Process batch</strong><br />
+        Runs the classification on every loaded image using the current settings and downloads the selected outputs through your browser — there's no folder picker to set up first, since web pages can't write directly to your filesystem the way a desktop app can. The progress bar tracks completion, and the label below it shows status. Processing time depends on the image size selection and the number of images; very large images at "Original" resolution can take a second or more each.</p>
+
+        <h3>Display and saved files</h3>
+        <p>The image shown in the main window is a downsized preview, capped at about 800 pixels on the longest side so the interface stays responsive even on very large input photos. Classification itself runs at the resolution chosen in "Size," which can be much larger, and the JPEGs/PNGs written into the output ZIP during batch processing use that full processing resolution. As a result, the saved classified and blended images may look slightly crisper than the on-screen preview, and edge pixels along leaves can differ subtly between the two due to downscaling. The canopy cover percentage reported in the sidebar and the CSV is always computed at processing resolution, never at display resolution.</p>
+
+        <h3>About this web version</h3>
+        <p>This is a browser-based port of Canopeo. Everything, including image decoding, classification, and file packaging runs locally on your device. No images are ever uploaded anywhere. Because it's a Progressive Web App, you can also install it (see "Install App" in the menu bar, where supported) for an offline, app-like experience.</p>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── License modal (mirrors show_license()'s Toplevel) ───────────── -->
+  <div class="modal-overlay" id="license-modal">
+    <div class="modal-box wide">
+      <h2>License <button class="close-btn" data-close-modal>✕</button></h2>
+      <pre id="license-text">
+Canopeo
+Copyright (c) 2026 Patrignani &amp; Ochsner
+Required Notice: Copyright 2026 Patrignani &amp; Ochsner (https://soilwater.github.io/canopeo-desktop/)
+Licensed under the PolyForm Noncommercial License 1.0.0.
+The full text of the license follows below.
+
+------------------------------------------------------------------
+
+
+PolyForm Noncommercial License 1.0.0
+
+&lt;https://polyformproject.org/licenses/noncommercial/1.0.0&gt;
+
+# Acceptance
+In order to get any license under these terms, you must agree
+to them as both strict obligations and conditions to all
+your licenses.
+
+# Copyright License
+The licensor grants you a copyright license for the
+software to do everything you might do with the software
+that would otherwise infringe the licensor's copyright
+in it for any permitted purpose.  However, you may
+only distribute the software according to [Distribution
+License](#distribution-license) and make changes or new works
+based on the software according to [Changes and New Works
+License](#changes-and-new-works-license).
+
+# Distribution License
+The licensor grants you an additional copyright license
+to distribute copies of the software.  Your license
+to distribute covers distributing the software with
+changes and new works permitted by [Changes and New Works
+License](#changes-and-new-works-license).
+
+# Notices
+You must ensure that anyone who gets a copy of any part of
+the software from you also gets a copy of these terms or the
+URL for them above, as well as copies of any plain-text lines
+beginning with `Required Notice:` that the licensor provided
+with the software.  For example:
+
+&gt; Required Notice: Copyright Yoyodyne, Inc. (http://example.com)
+
+# Changes and New Works License
+The licensor grants you an additional copyright license to
+make changes and new works based on the software for any
+permitted purpose.
+
+# Patent License
+The licensor grants you a patent license for the software that
+covers patent claims the licensor can license, or becomes able
+to license, that you would infringe by using the software.
+
+# Noncommercial Purposes
+Any noncommercial purpose is a permitted purpose.
+
+# Personal Uses
+Personal use for research, experiment, and testing for
+the benefit of public knowledge, personal study, private
+entertainment, hobby projects, amateur pursuits, or religious
+observance, without any anticipated commercial application,
+is use for a permitted purpose.
+
+# Noncommercial Organizations
+Use by any charitable organization, educational institution,
+public research organization, public safety or health
+organization, environmental protection organization,
+or government institution is use for a permitted purpose
+regardless of the source of funding or obligations resulting
+from the funding.
+
+# Fair Use
+You may have "fair use" rights for the software under the
+law. These terms do not limit them.
+
+# No Other Rights
+These terms do not allow you to sublicense or transfer any of
+your licenses to anyone else, or prevent the licensor from
+granting licenses to anyone else.  These terms do not imply
+any other licenses.
+
+# Patent Defense
+If you make any written claim that the software infringes or
+contributes to infringement of any patent, your patent license
+for the software granted under these terms ends immediately. If
+your company makes such a claim, your patent license ends
+immediately for work on behalf of your company.
+
+# Violations
+The first time you are notified in writing that you have
+violated any of these terms, or done anything with the software
+not covered by your licenses, your licenses can nonetheless
+continue if you come into full compliance with these terms,
+and take practical steps to correct past violations, within
+32 days of receiving notice.  Otherwise, all your licenses
+end immediately.
+
+# No Liability
+***As far as the law allows, the software comes as is, without
+any warranty or condition, and the licensor will not be liable
+to you for any damages arising out of these terms or the use
+or nature of the software, under any kind of legal claim.***
+
+# Definitions
+The **licensor** is the individual or entity offering these
+terms, and the **software** is the software the licensor makes
+available under these terms.
+
+**You** refers to the individual or entity agreeing to these
+terms.
+
+**Your company** is any legal entity, sole proprietorship,
+or other kind of organization that you work for, plus all
+organizations that have control over, are under the control of,
+or are under common control with that organization.  **Control**
+means ownership of substantially all the assets of an entity,
+or the power to direct its management and policies by vote,
+contract, or otherwise.  Control can be direct or indirect.
+
+**Your licenses** are all the licenses granted to you for the
+software under these terms.
+
+**Use** means anything you do with the software requiring one
+of your licenses.
+      </pre>
+    </div>
+  </div>
+
+  <!-- ── Lightweight toast for non-blocking errors ────────────────────── -->
+  <div class="toast" id="toast" hidden></div>
+
+  <!-- ── Vendored libraries (per-file licenses preserved in vendor/) ──── -->
+  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="vendor/exif.js"></script>
+  <script src="vendor/jszip.min.js"></script>
+  <script src="vendor/FileSaver.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
